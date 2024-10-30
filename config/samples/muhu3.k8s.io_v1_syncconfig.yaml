@@ -1,0 +1,14 @@
+apiVersion: muhu3.example.com/v1
+kind: SyncConfig
+metadata:
+  namespace: default
+  labels:
+    app.kubernetes.io/name: configmapsyncer
+    app.kubernetes.io/managed-by: kustomize
+  name: syncconfig-sample-1
+spec:
+  targetNs: "default"
+  data: 
+    yoououou: "mmmmmmm"
+    yoououou: "mmmmmmm"
+  
