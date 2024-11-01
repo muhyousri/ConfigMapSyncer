@@ -29,5 +29,5 @@ spec:
 ```
 git clone https://github.com/muhyousri/ConfigMapSyncer
 cd ConfigMapSyncer
-kubectl apply -k config/defauly
+kubectl apply -k config/default
 ```
