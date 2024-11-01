@@ -1,7 +1,8 @@
 # ConfigMapSyncer
 
-A dummy controller that watches a custom resource called SyncConfig (syncconfigs.muhu3.example.com ),
-Logic: When a new SyncConfig is created or updated, the controller creates or updates a ConfigMap in a target namespace with the specified key-value data.
+A dummy controller that watches a custom resource called SyncConfig (syncconfigs.muhu3.example.com ).
+
+When a new SyncConfig is created or updated, the controller creates or updates a ConfigMap in a target namespace with the specified key-value data.
 
 Syncconfig resource Example:
 
