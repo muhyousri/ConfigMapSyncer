@@ -18,8 +18,10 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	core1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,6 +39,7 @@ type SyncConfigReconciler struct {
 // +kubebuilder:rbac:groups=muhu3.example.com,resources=syncconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=muhu3.example.com,resources=syncconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=muhu3.example.com,resources=syncconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;delete;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -52,8 +55,24 @@ func (r *SyncConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	var testconfig core1.ConfigMap
 
 	if err := r.Get(ctx, req.NamespacedName, &syncConfig); err != nil {
+		if errors.IsNotFound(err) {
+			fmt.Printf("Resource is deleted, Deleting ConfigMap.. \n ")
+			fmt.Println(req.Name)
+			fmt.Println(req.Namespace)
+			cm_deleted := core1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.Name,
+					Namespace: req.Namespace,
+				},
+			}
+
+			r.Delete(ctx, &cm_deleted)
+			fmt.Printf("Deleted! \n ")
+
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	fmt.Println("Got a new SyncConfig")
 
 	name := syncConfig.Name
 	nameSpace := syncConfig.Namespace
@@ -64,25 +83,37 @@ func (r *SyncConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		Namespace: nameSpace,
 	}
 
+	fmt.Println("cmKey:", cmKey)
+	fmt.Println("syncData:", syncData)
+
 	if err := r.Get(ctx, cmKey, &testconfig); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return ctrl.Result{}, err
+		if errors.IsNotFound(err) {
+			fmt.Println("ConfigMap doesn't exist, creating...")
+
+			testconfig = core1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: nameSpace,
+				},
+				Data: syncData,
+			}
+			if err := r.Create(ctx, &testconfig); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil // Return after creating
 		}
 
-		testconfig = core1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nameSpace,
-			},
-			Data: syncData,
-		}
+		return ctrl.Result{}, err
+	}
 
-		// Create the ConfigMap
-		if err := r.Create(ctx, &testconfig); err != nil {
-			return ctrl.Result{}, err // Return error if creation fails
-		}
+	fmt.Println("ConfigMap exists, patching...")
+	newConfig := testconfig.DeepCopy()
+	newConfig.Data = syncData // Modify data in newConfig
 
-		return ctrl.Result{}, nil
+	patch := client.MergeFrom(&testconfig) // Use testconfig as base for the patch
+	if err := r.Patch(ctx, newConfig, patch); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

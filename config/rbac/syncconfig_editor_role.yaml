@@ -25,3 +25,15 @@ rules:
   - syncconfigs/status
   verbs:
   - get
+- apiGroups:
+  - ""  # This refers to the core API group
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
